@@ -17,22 +17,6 @@ class ZendexGUI:
         # Ticket init with vars
         self.tickets = ttk.Frame(main)
         self.tickets.pack()
-
-        self.e_handoff_id = StringVar()
-        self.e_full_name = StringVar()        
-        self.e_b_name = StringVar()        
-        self.e_phone = StringVar()
-        self.e_email = StringVar()
-        self.e_ord_num = StringVar()        
-        self.e_shipping = StringVar()
-        self.e_shipping.set("Not Sent")
-        self.e_cs_req = StringVar()
-        self.e_manage_acc = StringVar()
-
-
-        self.add_new = False
-        self.add = ttk.Button(self.tickets, text = "New Ticket", command = self.new_tic)
-        self.add.pack()
         
         self.tict_dict = {
             'open': [],
@@ -42,9 +26,25 @@ class ZendexGUI:
             'complete': []
         }
 
-        self.tickets = ttk.Frame(main)
-        self.tickets.pack()
+        # Ticket entry vars
+        self.e_handoff_id = StringVar()
+        self.e_full_name = StringVar()        
+        self.e_b_name = StringVar()        
+        self.e_phone = StringVar()
+        self.e_email = StringVar()
+        self.e_ord_num = StringVar()        
+        self.e_shipping = StringVar()
+        self.e_shipping.set("Not Sent")
+        self.e_cs_req = StringVar()
+        self.e_ticket_status = StringVar()
+        self.e_ticket_status.set("Open")
+        self.e_manage_acc = StringVar()
+        self.add_new = False
 
+        self.add = ttk.Button(self.tickets, text = "New Ticket", command = self.new_tic)
+        self.add.pack()
+        
+        # Tabs to differentiate the ticket status
         self.notebook = ttk.Notebook(main)
 
         self.orders = ttk.Frame(self.notebook)
@@ -64,40 +64,40 @@ class ZendexGUI:
     def new_tic(self): # Creating new ticket
         if self.add_new != False:
             self.add_new.destroy()
-        
+
+        # Creates a new ticket window
         self.add_new = Toplevel(self.root) 
         self.add_new.geometry("300x300")
         self.entry = ttk.Frame(self.add_new)
         self.entry.grid()  
         
-        # New ticket text boxes 
-        
-        self.handoff_id = ttk.Entry(self.add_new, width = 20)
+        # New ticket entry boxes 
+        self.handoff_id = ttk.Entry(self.add_new, width = 30)
         self.handoff_id.grid(row = 0, column = 1, padx = 10)
         self.handoff_id_label = ttk.Label(self.add_new, text = "Ticket ID")
         self.handoff_id_label.grid(row = 0, column = 0, padx = 10)
 
-        self.full_name = ttk.Entry(self.add_new, width = 20)
+        self.full_name = ttk.Entry(self.add_new, width = 30)
         self.full_name.grid(row = 1, column = 1, padx = 10)
         self.full_name_label = ttk.Label(self.add_new, text = "Full Name")
         self.full_name_label.grid(row = 1, column = 0, padx = 10)
 
-        self.b_name = ttk.Entry(self.add_new, width = 20)
+        self.b_name = ttk.Entry(self.add_new, width = 30)
         self.b_name.grid(row = 2, column = 1, padx = 10)
         self.b_name_label = ttk.Label(self.add_new, text = "Business Name")
         self.b_name_label.grid(row = 2, column = 0, padx = 10)
 
-        self.phone = ttk.Entry(self.add_new, width = 20)
+        self.phone = ttk.Entry(self.add_new, width = 30)
         self.phone.grid(row = 3, column = 1, padx = 10)
         self.phone_label = ttk.Label(self.add_new, text = "Phone Number")
         self.phone_label.grid(row = 3, column = 0, padx = 10)
 
-        self.email = ttk.Entry(self.add_new, width = 20)
+        self.email = ttk.Entry(self.add_new, width = 30)
         self.email.grid(row = 4, column = 1, padx = 10)
         self.email_label = ttk.Label(self.add_new, text = "Email Address")
         self.email_label.grid(row = 4, column = 0, padx = 10)
 
-        self.ord_num = ttk.Entry(self.add_new, width = 20)
+        self.ord_num = ttk.Entry(self.add_new, width = 30)
         self.ord_num.grid(row = 5, column = 1, padx = 10)
         self.ord_num_label = ttk.Label(self.add_new, text = "ORD Number")
         self.ord_num_label.grid(row = 5, column = 0, padx = 10)
@@ -114,50 +114,46 @@ class ZendexGUI:
         self.cs_req_label = ttk.Label(self.add_new, text = "CS Action")
         self.cs_req_label.grid(row = 7, column = 0, padx = 10)
 
-        self.manage_acc = ttk.Entry(self.add_new, width = 20)
+        self.manage_acc = ttk.Entry(self.add_new, width = 30)
         self.manage_acc.grid(row = 8, column = 1, padx = 10)
         self.manage_acc_label = ttk.Label(self.add_new, text = "Manage Accout")
-        self.manage_acc_label.grid(row = 8, column = 0, padx = 10)
+        self.manage_acc_label.grid(row = 8, column = 0, padx = 10)        
+        
+        self.ticket_status = OptionMenu(self.add_new, self.e_ticket_status, "Open", "Onboard", \
+                                 "Install", "Scheduled", "Complete")
+        self.ticket_status.grid(row = 9, column = 1, padx = 10)
+        self.ticket_status_label = ttk.Label(self.add_new, text = "Status")
+        self.ticket_status_label.grid(row = 9, column = 0, padx = 10)
 
         self.submit_new = ttk.Button(self.add_new, text = "Add Ticket", command = self.submit_ticket)
-        self.submit_new.grid(row = 9, column = 0, columnspan = 2, pady = 10, padx = 10)
+        self.submit_new.grid(row = 10, column = 1, columnspan = 1, pady = 10, padx = 10)
+        self.clear_new = ttk.Button(self.add_new, text = "Clear", command = self.clear_text)
+        self.clear_new.grid(row = 10, column = 0, columnspan = 1, pady = 10, padx = 10)
 
         #self.handoff_id.bind('<Return>', lambda e: self.new_enter_key("open", self.handoff_id.get(), self.add_new))
     
     def submit_ticket(self):
-
-        
         db_conn = sql.connect('PR_Tickets.db') #Create database
         cx = db_conn.cursor() #Create cursor 
 
+        #Commit changes and submit to DB
         cx.execute("INSERT INTO handoff_tickets VALUES (:handoff_id, :full_name, :b_name, \
-                   :phone, :email, :ord_num, :e_shipping, :e_cs_req, :manage_acc)",
+                   :phone, :email, :ord_num, :e_shipping, :e_cs_req, :e_ticket_status, :manage_acc)",
                     {
                         'handoff_id': self.handoff_id.get(),
-                        'full_name': self.handoff_id.get(),
-                        'b_name': self.handoff_id.get(),
-                        'phone': self.handoff_id.get(),
-                        'email': self.handoff_id.get(),
-                        'ord_num': self.handoff_id.get(),
-                        'e_shipping': self.handoff_id.get(),
-                        'e_cs_req': self.handoff_id.get(),
-                        'manage_acc': self.handoff_id.get()
+                        'full_name': self.full_name.get(),
+                        'b_name': self.b_name.get(),
+                        'phone': self.phone.get(),
+                        'email': self.email.get(),
+                        'ord_num': self.ord_num.get(),
+                        'e_shipping': self.e_shipping.get(),
+                        'e_cs_req': self.e_cs_req.get(),
+                        'e_ticket_status': self.e_ticket_status.get(),
+                        'manage_acc': self.manage_acc.get()
                     }
                 )
-        
-        self.handoff_id.delete(0,END)
-        self.full_name.delete(0,END)
-        self.b_name.delete(0,END)
-        self.phone.delete(0,END)
-        self.email.delete(0,END)
-        self.ord_num.delete(0,END)
-        self.e_shipping.set("Not Sent")
-        self.e_cs_req.set("")
-        self.manage_acc.delete(0,END)
-
         db_conn.commit()
         db_conn.close()
-
 
     def new_enter_key(self, case, new_tic, window):
         self.add_to_list(case, new_tic)
@@ -170,38 +166,41 @@ class ZendexGUI:
     def close_window(self,window):
         window.destroy()
     
-    #def clear_text(self):
-    #    self.clear 
+    def clear_text(self): #Clear entries after sending       
+        self.handoff_id.delete(0,END)
+        self.full_name.delete(0,END)
+        self.b_name.delete(0,END)
+        self.phone.delete(0,END)
+        self.email.delete(0,END)
+        self.ord_num.delete(0,END)
+        self.e_shipping.set("Not Sent")
+        self.e_cs_req.set("")
+        self.e_ticket_status.set("Open")
+        self.manage_acc.delete(0,END) 
 
     #def ticNum(self, number): #ticket number
     #   self.number = number
 
-
 # Main root window
-
 root = Tk()
 ZDint = ZendexGUI(root)
 root.geometry("480x540")
 
 # GUI Database SQLITE3
-
 db_conn = sql.connect('PR_Tickets.db') #Create database
 cx = db_conn.cursor() #Create cursor 
 
 
 cx.execute("""CREATE TABLE IF NOT EXISTS handoff_tickets (
            handoff_id INTEGER PRIMARY KEY,
-           shipping INTEGER,
-           cs_req_id INTEGER,
-           install_tickets_id INTEGER,
            full_name TEXT,
            b_name TEXT,
            phone TEXT,
            email TEXT,
            ord_num TEXT,
-           ticket_status TEXT,
            shipping TEXT,
            cs_req TEXT,
+           ticket_status TEXT,
            manage_acc TEXT
            )""" )
 
