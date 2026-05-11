@@ -19,11 +19,11 @@ class ZendexGUI:
         self.tickets.pack()
         
         self.tict_dict = {
-            'open': [],
-            'onboard': [],
-            'install': [],
-            'qc': [],
-            'complete': []
+            'Open': [],
+            'Onboard': [],
+            'Install': [],
+            'Scheduled': [],
+            'Complete': []
         }
 
         # Ticket entry vars
@@ -41,10 +41,11 @@ class ZendexGUI:
         self.e_manage_acc = StringVar()
         self.add_new = False
 
+        # Add buttons
         self.add = ttk.Button(self.tickets, text = "New Ticket", command = self.new_tic)
         self.add.pack()
         
-        # Tabs to differentiate the ticket status
+        # Building tabs to differentiate the ticket status
         self.notebook = ttk.Notebook(main)
 
         self.orders = ttk.Frame(self.notebook)
@@ -58,8 +59,10 @@ class ZendexGUI:
         self.notebook.add(self.install, text = "Install")    
         self.notebook.add(self.sched, text = "Scheduled")
         self.notebook.add(self.complete, text = "Complete")
-
         self.notebook.pack()
+        
+        # 
+        
 
     def new_tic(self): # Creating new ticket
         if self.add_new != False:
@@ -232,7 +235,7 @@ fulfillment = [
 # cx.executemany("INSERT INTO fulfill (status) VALUES (?)", fulfillment)
            
 cx.execute("""CREATE TABLE IF NOT EXISTS cs_req(
-           shipping PRIMARY KEY,            
+           shipping PRIMARY KEY, 
            status TEXT 
            )""")
 
