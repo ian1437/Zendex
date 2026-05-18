@@ -3,12 +3,12 @@
 import sqlite3 as sql
 from tkinter import *
 from tkinter import ttk
+from tkinter import messagebox
 
 
 class ZendexGUI:
-
     def __init__(self, main):
-        
+
         # Main t.window
         self.root = main
         self.root.title("Tickets")
@@ -40,6 +40,8 @@ class ZendexGUI:
         self.e_ticket_status.set("Open")
         self.e_manage_acc = StringVar()
         self.add_new = False
+        self.selected_ticket = None
+        self.selected_listbox = None
 
         # Add buttons
         self.add = ttk.Button(self.tickets, text = "New Ticket", command = self.new_tic)
@@ -67,39 +69,194 @@ class ZendexGUI:
         self.notebook.add(self.install, text = "Install")    
         self.notebook.add(self.sched, text = "Scheduled")
         self.notebook.add(self.complete, text = "Complete")
-        self.notebook.pack()
+        self.notebook.pack(fill="both", expand=True)
         
         # 
-        self.tab_frames = {
-            "Open": self.orders,
-            "Onboard": self.oboard,
-            "Install": self.install,
-            "Scheduled": self.sched,
-            "Complete": self.complete
+        self.open_ticket_list = self.build_ticket_tab(self.orders)
+        self.onboard_ticket_list = self.build_ticket_tab(self.oboard)
+        self.install_ticket_list = self.build_ticket_tab(self.install)
+        self.scheduled_ticket_list = self.build_ticket_tab(self.sched)
+        self.complete_ticket_list = self.build_ticket_tab(self.complete)
+
+        self.ticket_lists = {
+            "Open": self.open_ticket_list,
+            "Onboard": self.onboard_ticket_list,
+            "Install": self.install_ticket_list,
+            "Scheduled": self.scheduled_ticket_list,
+            "Complete": self.complete_ticket_list
         }
 
         self.load_tickets()    
+  
+    def delete_ticket(self):
+        if self.selected_ticket is None:
+            return
+
+        confirm = messagebox.askyesno(
+            title="Delete Ticket",
+            message="Delete this ticket?"
+        )
+
+        if not confirm:
+            return
+
+        db_conn = sql.connect('PR_Tickets.db')
+        cx = db_conn.cursor()
+
+        cx.execute(
+            "DELETE FROM handoff_tickets WHERE handoff_id = ?",
+            (self.selected_ticket,)
+        )
+
+        db_conn.commit()
+        db_conn.close()
+
+        selected_index = self.selected_listbox.curselection()
+
+        if selected_index:
+            self.selected_listbox.delete(selected_index[0])
+
+        self.selected_ticket = None
+        self.selected_listbox = None
+
+        messagebox.showinfo(
+            title="Deleted",
+            message="Ticket deleted successfully."
+        )
+
+    def build_ticket_tab(self, tab):
+    
+    # Main self.container inside each notebook tab
+        self.container = ttk.Frame(tab)
+        self.container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Left ticket list area
+        self.left_frame = ttk.Frame(self.container, width=120)
+        self.left_frame.pack(side="left", fill="y", padx=(0, 10))
+
+        self.ticket_label = ttk.Label(self.left_frame, text="Ticket #")
+        self.ticket_label.pack(pady=5)
+
+        self.ticket_list = Listbox(self.left_frame, width=15)
+        self.ticket_list.pack(fill="y", expand=True)
+        self.ticket_list.bind("<<ListboxSelect>>", self.show_ticket_info)
+
+        # Right ticket info area
+        self.right_frame = ttk.Frame(self.container)
+        self.right_frame.pack(side="left", fill="both", expand=True)
+
+        details_frame = ttk.LabelFrame(self.right_frame, text="Ticket Details")
+        details_frame.pack(pady=10, padx=20, fill="x")
+
+        detail_vars = {
+            "full_name": StringVar(),
+            "b_name": StringVar(),
+            "email": StringVar(),
+            "phone": StringVar(),
+            "ord_num": StringVar(),
+            "manage_acc": StringVar()
+        }
+
+        labels = {
+            "full_name": "Name",
+            "b_name": "Business",
+            "email": "Email",
+            "phone": "Phone",
+            "ord_num": "Ord #",
+            "manage_acc": "Manage #"
+        }
+
+        row = 0
+        for key, label_text in labels.items():
+            ttk.Label(details_frame, text=label_text).grid(row=row, column=0, sticky="w", padx=5, pady=3)
+
+            entry = ttk.Entry(details_frame, textvariable=detail_vars[key], width=35)
+            entry.grid(row=row, column=1, padx=5, pady=3)
+
+            row += 1
+
+        self.ticket_list.detail_vars = detail_vars
+
+        # Shipping / CS section
+        self.action_frame = ttk.Frame(self.right_frame)
+        self.action_frame.pack(pady=20)
+
+        ttk.Label(self.action_frame, text="Shipped Status").grid(row=0, column=0, padx=10, pady=5)
+        shipping_var = StringVar(value="Not Sent")
+        self.shipping_status = ttk.OptionMenu(
+            self.action_frame,
+            shipping_var,
+            "Not Sent",
+            "Not Sent",
+            "Ready to Ship",
+            "Complete"
+        )
+        self.shipping_status.grid(row=0, column=1, padx=10, pady=5)
+        self.ticket_list.shipping_var = shipping_var
+
+        ttk.Label(self.action_frame, text="CS Action").grid(row=1, column=0, padx=10, pady=5)
+        cs_var = StringVar(value="")
+        self.cs_action = ttk.OptionMenu(
+            self.action_frame,
+            cs_var,
+            "",
+            "Onboard Only",
+            "Install Only",
+            "Onboard + Install",
+            "No Onboard + No Install"
+        )
+        self.cs_action.grid(row=1, column=1, padx=10, pady=5)
+        self.ticket_list.cs_var = cs_var
+
+        # Status section
+        self.status_frame = ttk.LabelFrame(self.right_frame, text="Status")
+        self.status_frame.pack(pady=20, fill="x", padx=30)
+
+        status_var = StringVar(value="Open")
+        self.status_menu = ttk.OptionMenu(
+            self.status_frame,
+            status_var,
+            "Open",
+            "Open",
+            "Onboard",
+            "Install",
+            "Scheduled",
+            "Complete"
+        )
+        self.status_menu.grid(row=0, column=1, padx=10, pady=10)
+        self.ticket_list.status_var = status_var
+
+        self.notes_box = Text(self.status_frame, height=4, width=30)
+        self.notes_box.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
+        
+        delete_button = ttk.Button(
+            self.right_frame,
+            text="Delete Ticket",
+            command=self.delete_ticket
+        )
+        delete_button.pack(pady=10)
+
+        update_button = ttk.Button(
+            self.right_frame,
+            text="Update Ticket",
+            command=self.update_ticket
+        )
+        update_button.pack(pady=5)
+        
+        return self.ticket_list
     
     def load_tickets(self):
         db_conn = sql.connect('PR_Tickets.db')
         cx = db_conn.cursor()
-
         cx.execute("SELECT handoff_id, full_name, b_name, ticket_status FROM handoff_tickets")
         records = cx.fetchall()
-
         db_conn.close()
 
         for record in records:
             handoff_id, full_name, b_name, status = record
-
-            if status in self.tab_frames:
-                ticket_text = f"{handoff_id} - {full_name} - {b_name}"
-
-                ticket_label = ttk.Label(
-                    self.tab_frames[status],
-                    text=ticket_text
-                )
-                ticket_label.pack(anchor="w", padx=10, pady=5) 
+            if status in self.ticket_lists:
+                ticket_text = str(handoff_id)
+                self.ticket_lists[status].insert(END, ticket_text)
 
     def new_tic(self): # Creating new ticket
         if self.add_new != False:
@@ -169,8 +326,42 @@ class ZendexGUI:
         self.submit_new.grid(row = 10, column = 1, columnspan = 1, pady = 10, padx = 10)
         self.clear_new = ttk.Button(self.add_new, text = "Clear", command = self.clear_text)
         self.clear_new.grid(row = 10, column = 0, columnspan = 1, pady = 10, padx = 10)
+    
+    def show_ticket_info(self, event):
+        if not event.widget.curselection():
+            return
 
-        #self.handoff_id.bind('<Return>', lambda e: self.new_enter_key("open", self.handoff_id.get(), self.add_new))
+        selected_ticket = event.widget.get(event.widget.curselection()[0])
+
+        self.selected_ticket = selected_ticket
+        self.selected_listbox = event.widget
+        
+        db_conn = sql.connect('PR_Tickets.db')
+        cx = db_conn.cursor()
+
+        cx.execute("""
+            SELECT full_name, b_name, email, phone, ord_num, shipping, cs_req, ticket_status, manage_acc
+            FROM handoff_tickets
+            WHERE handoff_id = ?
+        """, (selected_ticket,))
+
+        record = cx.fetchone()
+
+        db_conn.close()
+
+        if record:
+            full_name, b_name, email, phone, ord_num, shipping, cs_req, ticket_status, manage_acc = record
+
+            event.widget.detail_vars["full_name"].set(full_name)
+            event.widget.detail_vars["b_name"].set(b_name)
+            event.widget.detail_vars["email"].set(email)
+            event.widget.detail_vars["phone"].set(phone)
+            event.widget.detail_vars["ord_num"].set(ord_num)
+            event.widget.detail_vars["manage_acc"].set(manage_acc)
+            event.widget.shipping_var.set(shipping)
+            event.widget.cs_var.set(cs_req)
+            event.widget.status_var.set(ticket_status)
+    
     def submit_ticket(self):
         db_conn = sql.connect('PR_Tickets.db')
         cx = db_conn.cursor()
@@ -196,35 +387,77 @@ class ZendexGUI:
         db_conn.close()
 
         status = self.e_ticket_status.get()
-        ticket_text = f"{self.handoff_id.get()} - {self.full_name.get()} - {self.b_name.get()}"
+        ticket_text = str(self.handoff_id.get())
 
-        if status in self.tab_frames:
-            ticket_label = ttk.Label(self.tab_frames[status], text=ticket_text)
-            ticket_label.pack(anchor="w", padx=10, pady=5)
+        if status in self.ticket_lists:
+            self.ticket_lists[status].insert(END, ticket_text)
 
         self.clear_text()
-    def submit_ticket(self):
-        db_conn = sql.connect('PR_Tickets.db') #Create database
-        cx = db_conn.cursor() #Create cursor 
 
-        #Commit changes and submit to DB
-        cx.execute("INSERT INTO handoff_tickets VALUES (:handoff_id, :full_name, :b_name, \
-                   :phone, :email, :ord_num, :e_shipping, :e_cs_req, :e_ticket_status, :manage_acc)",
-                    {
-                        'handoff_id': self.handoff_id.get(),
-                        'full_name': self.full_name.get(),
-                        'b_name': self.b_name.get(),
-                        'phone': self.phone.get(),
-                        'email': self.email.get(),
-                        'ord_num': self.ord_num.get(),
-                        'e_shipping': self.e_shipping.get(),
-                        'e_cs_req': self.e_cs_req.get(),
-                        'e_ticket_status': self.e_ticket_status.get(),
-                        'manage_acc': self.manage_acc.get()
-                    }
-                )
+    def update_ticket(self):
+        if self.selected_ticket is None:
+            return
+        old_listbox = self.selected_listbox
+        detail_vars = self.selected_listbox.detail_vars
+
+        full_name = detail_vars["full_name"].get()
+        b_name = detail_vars["b_name"].get()
+        email = detail_vars["email"].get()
+        phone = detail_vars["phone"].get()
+        ord_num = detail_vars["ord_num"].get()
+        manage_acc = detail_vars["manage_acc"].get()
+        shipping = self.selected_listbox.shipping_var.get()
+        cs_req = self.selected_listbox.cs_var.get()
+        ticket_status = self.selected_listbox.status_var.get()
+        db_conn = sql.connect('PR_Tickets.db')
+        cx = db_conn.cursor()
+
+        cx.execute("""
+            UPDATE handoff_tickets
+            SET full_name = ?,
+                b_name = ?,
+                email = ?,
+                phone = ?,
+                ord_num = ?,
+                shipping = ?,
+                cs_req = ?,
+                ticket_status = ?,
+                manage_acc = ?
+            WHERE handoff_id = ?
+        """, (
+            full_name,
+            b_name,
+            email,
+            phone,
+            ord_num,
+            shipping,
+            cs_req,
+            ticket_status,
+            manage_acc,
+            self.selected_ticket
+        ))
+
         db_conn.commit()
         db_conn.close()
+        
+        current_index = self.selected_listbox.curselection()
+
+        new_listbox = self.ticket_lists[ticket_status]
+
+        if old_listbox != new_listbox:
+            current_index = old_listbox.curselection()
+
+            if current_index:
+                old_listbox.delete(current_index[0])
+
+            new_listbox.insert(END, self.selected_ticket)
+
+            self.selected_listbox = new_listbox
+
+        messagebox.showinfo(
+            title="Updated",
+            message="Ticket updated successfully."
+        )
 
     def new_enter_key(self, case, new_tic, window):
         self.add_to_list(case, new_tic)
