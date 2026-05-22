@@ -11,7 +11,7 @@ class ZendexGUI:
         # Main t.window
         self.root = main
         self.root.title("Tickets")
-        self.root.geometry("700x600")
+        self.root.geometry("600x500")
         
         # Ticket init with vars
         self.tickets = ttk.Frame(main)
@@ -173,74 +173,61 @@ class ZendexGUI:
         row = 0
         for key, label_text in labels.items():
             ttk.Label(details_frame, text=label_text).grid(row=row, column=0, sticky="w", padx=5, pady=3)
-
             entry = ttk.Entry(details_frame, textvariable=handoff_vars[key], width=35)
             entry.grid(row=row, column=1, padx=5, pady=3)
 
             row += 1
 
         self.ticket_list.handoff_vars = handoff_vars
-
-        # Shipping / CS section
-        self.action_frame = ttk.Frame(self.right_frame)
-        self.action_frame.pack(pady=20)
-
-        ttk.Label(self.action_frame, text="Shipped Status").grid(row=0, column=0, padx=10, pady=5)
+        
+        ttk.Label(details_frame, text="Ticket Status").grid(row=0, column=3, padx=10, pady=5)
+        status_var = StringVar(value="Install")
+        self.status_menu = ttk.OptionMenu(details_frame, status_var, "Install", "Install", "Scheduled", "Complete")
+        self.status_menu.grid(row=0, column=4, padx=10, pady=10)
+        self.ticket_list.status_var = status_var 
+        
+        ttk.Label(details_frame, text="Shipped Status").grid(row=1, column=3, padx=10, pady=5)
         shipping_var = StringVar(value="Not Sent")
         self.shipping_status = ttk.OptionMenu(
-            self.action_frame,
+            details_frame,
             shipping_var,
             "Not Sent",
             "Not Sent",
             "Ready to Ship",
             "Complete"
         )
-        self.shipping_status.grid(row=0, column=1, padx=10, pady=5)
+        self.shipping_status.grid(row=1, column=4, padx=10, pady=5)
         self.ticket_list.shipping_var = shipping_var
 
-        ttk.Label(self.action_frame, text="CS Action").grid(row=1, column=0, padx=10, pady=5)
+        ttk.Label(details_frame, text="CS Action").grid(row=2, column=3, padx=10, pady=5)
         cs_var = StringVar(value="")
         self.cs_action = ttk.OptionMenu(
-            self.action_frame,
+            details_frame,
             cs_var, 
-            "", "", "Onboard Only", "Install Only","Onboard + Install", "No Onboard + No Install"
-            )
+            "", "", "Onboard Only", "Install Only","Onboard + Install", "No Onboard + No Install")
         
-        self.cs_action.grid(row=1, column=1, padx=10, pady=5)
+        self.cs_action.grid(row=2, column=4, padx=10, pady=5)
         self.ticket_list.cs_var = cs_var
 
-        # Status section
-        self.status_frame = ttk.LabelFrame(self.right_frame, text="Status")
-        self.status_frame.pack(pady=20, fill="x", padx=30)
-
         status_var = StringVar(value="Open")
-        self.status_menu = ttk.OptionMenu(
-            self.status_frame,
-            status_var,
-            "Open",
-            "Open",
-            "Onboard",
-            "Complete"
-        )
-        self.status_menu.grid(row=0, column=1, padx=10, pady=10)
+        self.status_menu = ttk.OptionMenu(details_frame, status_var, "Open", "Open", "Onboard", "Complete")
+        self.status_menu.grid(row=3, column=4, padx=10, pady=5)
         self.ticket_list.status_var = status_var
-
-        self.notes_box = Text(self.status_frame, height=4, width=30)
-        self.notes_box.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
+      
+      # Shipping / CS section
+        self.action_frame = LabelFrame(self.right_frame, text="Notes", bd=0)
+        self.action_frame.pack()
+        self.notes_box = Text(self.action_frame, height=4, width=30)
+        self.notes_box.grid(row=0, rowspan = 4, column= 2, columnspan=2, padx=10, pady=10)
         
-        delete_button = ttk.Button(
-            self.right_frame,
-            text="Delete Ticket",
-            command=self.delete_ticket
-        )
-        delete_button.pack(pady=10)
+        # Status section
+        self.status_frame = ttk.Frame(self.right_frame)
+        self.status_frame.pack(expand=True)
+        delete_button = ttk.Button(self.status_frame, text="Delete Ticket", command=self.delete_ticket)
+        delete_button.grid(row =0, column=0, pady=10)
 
-        update_button = ttk.Button(
-            self.right_frame,
-            text="Update Ticket",
-            command=self.update_handoff
-        )
-        update_button.pack(pady=5)
+        update_button = ttk.Button(self.status_frame, text="Update Ticket", command=self.update_handoff)
+        update_button.grid(row = 0, column=1, pady=10)
         
         return self.ticket_list
     
@@ -270,7 +257,6 @@ class ZendexGUI:
 
         install_vars = {
             "install_id": StringVar(),
-            "install_date": StringVar(),
             "tech_name": StringVar(),
             "work_ord_num": StringVar(),
             "tracking_number": StringVar()
@@ -278,7 +264,6 @@ class ZendexGUI:
 
         labels = {
             "install_id": "Install Ticket",
-            "install_date": "Install Date",
             "tech_name": "Technician",
             "work_ord_num": "WO #",
             "tracking_number": "Tracking Number"
@@ -293,70 +278,61 @@ class ZendexGUI:
         row = 1
         for key, label_text in labels.items():
             ttk.Label(details_frame, text=label_text).grid(row=row, column=0, sticky="w", padx=5, pady=3)
-
             entry = ttk.Entry(details_frame, textvariable=install_vars[key], width=35)
             entry.grid(row=row, column=1, padx=5, pady=3)
-
             row += 1
-
+        
         self.ticket_list.install_vars = install_vars
-
-        # Shipping / CS section
-        self.action_frame = ttk.Frame(self.right_frame)
-        self.action_frame.pack(pady=20)
-
-        ttk.Label(self.action_frame, text="Install Company").grid(row=0, column=0, padx=10, pady=5)
-        company_var = StringVar(value="")
-        self.shipping_status = ttk.OptionMenu(self.action_frame, company_var, "", "", "TL", "TSP")
-        self.shipping_status.grid(row=0, column=1, padx=10, pady=5)
-        self.ticket_list.company_var = company_var
-                
-        ttk.Label(self.action_frame, text="Tech Account").grid(row=1, column=0, padx=10, pady=5)
-        admin_var = StringVar(value="")
-        self.shipping_status = ttk.OptionMenu(self.action_frame, admin_var, "", "", "Create", "Added", "Deleted")
-        self.shipping_status.grid(row=1, column=1, padx=10, pady=5)
-        self.ticket_list.admin_var = admin_var
-       
-        ttk.Label(self.action_frame, text="Install Status").grid(row=2, column=0, padx=10, pady=5)
-        installation_var = StringVar(value="")
-        self.shipping_status = ttk.OptionMenu(self.action_frame, installation_var, "", "", "RMA", "Scheduled", "Completed")
-        self.shipping_status.grid(row=2, column=1, padx=10, pady=5)
-        self.ticket_list.installation_var = installation_var
-
-        ttk.Label(self.action_frame, text="QC Status").grid(row=3, column=0, padx=10, pady=5)
-        qc_var = StringVar(value="")
-        self.shipping_status = ttk.OptionMenu(self.action_frame, qc_var, "", "", "Pending", "Pass", "Fail")
-        self.shipping_status.grid(row=3, column=1, padx=10, pady=5)
-        self.ticket_list.qc_var = qc_var
-
-        # Status section
-        self.status_frame = ttk.LabelFrame(self.right_frame, text="Status")
-        self.status_frame.pack(pady=20, fill="x", padx=30)
-
+        
+        ttk.Label(details_frame, text="Install Date").grid(row=row, column=0, sticky="w", padx=5, pady=3)
+        install_date = DateEntry(details_frame, width=27, state = "normal", date_pattern="yyyy-mm-dd")
+        install_date.grid(row=row, column=1, padx=10, pady=5)
+        self.ticket_list.install_date_widget = install_date
+        
+        ttk.Label(details_frame, text="Ticket Status").grid(row=0, column=3, padx=10, pady=5)
         status_var = StringVar(value="Install")
-        self.status_menu = ttk.OptionMenu(
-            self.status_frame,
-            status_var,
-            "Install",
-            "Install",
-            "Scheduled",
-            "Complete"
-        )
-        self.status_menu.grid(row=0, column=1, padx=10, pady=10)
+        self.status_menu = ttk.OptionMenu(details_frame, status_var, "Install", "Install", "Scheduled", "Complete")
+        self.status_menu.grid(row=0, column=4, padx=10, pady=10)
         self.ticket_list.status_var = status_var
 
-        self.notes_box = Text(self.status_frame, height=4, width=30)
-        self.notes_box.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
-        
-        delete_button = ttk.Button(self.right_frame, text="Delete Ticket", command=self.delete_ticket)
-        delete_button.pack(pady=10)
+        ttk.Label(details_frame, text="Install Company").grid(row=1, column=3, padx=10, pady=5)
+        company_var = StringVar(value="")
+        self.shipping_status = ttk.OptionMenu(details_frame, company_var, "", "", "TL", "TSP")
+        self.shipping_status.grid(row=1, column=4, padx=10, pady=5)
+        self.ticket_list.company_var = company_var
+                
+        ttk.Label(details_frame, text="Tech Account").grid(row=2, column=3, padx=10, pady=5)
+        admin_var = StringVar(value="")
+        self.shipping_status = ttk.OptionMenu(details_frame, admin_var, "", "", "Create", "Added", "Deleted")
+        self.shipping_status.grid(row=2, column=4, padx=10, pady=5)
+        self.ticket_list.admin_var = admin_var
+       
+        ttk.Label(details_frame, text="Install Status").grid(row=3, column=3, padx=10, pady=5)
+        installation_var = StringVar(value="")
+        self.shipping_status = ttk.OptionMenu(details_frame, installation_var, "", "", "RMA", "Scheduled", "Completed")
+        self.shipping_status.grid(row=3, column=4, padx=10, pady=5)
+        self.ticket_list.installation_var = installation_var
 
-        update_button = ttk.Button(
-            self.right_frame,
-            text="Update Ticket",
-            command=self.update_handoff
-        )
-        update_button.pack(pady=5)
+        ttk.Label(details_frame, text="QC Status").grid(row=4, column=3, padx=10, pady=5)
+        qc_var = StringVar(value="")
+        self.shipping_status = ttk.OptionMenu(details_frame, qc_var, "", "", "Pending", "Pass", "Fail")
+        self.shipping_status.grid(row=4, column=4, padx=10, pady=5)
+        self.ticket_list.qc_var = qc_var
+
+        # Shipping / CS section
+        self.action_frame = LabelFrame(self.right_frame, text="Notes", bd=0)
+        self.action_frame.pack()
+        self.notes_box = Text(self.action_frame, height=4, width=30)
+        self.notes_box.grid(row=0, rowspan = 4, column= 2, columnspan=2, padx=10, pady=10)
+        
+        # Status section
+        self.status_frame = ttk.Frame(self.right_frame)
+        self.status_frame.pack(expand=True)
+        delete_button = ttk.Button(self.status_frame, text="Delete Ticket", command=self.delete_ticket)
+        delete_button.grid(row =0, column=0, pady=10)
+
+        update_button = ttk.Button(self.status_frame, text="Update Ticket", command=self.update_handoff)
+        update_button.grid(row = 0, column=1, pady=10)
         
         return self.ticket_list   
     
@@ -516,9 +492,12 @@ class ZendexGUI:
             install_id, handoff_id, install_company, install_date, tech_name, tech_on_admin, work_ord_num, \
                 install_complete, qc_complete, tracking_number = record
 
+            if install_date:
+                event.widget.install_date_widget.set_date(install_date)
+            else:
+                event.widget.install_date_widget.delete(0, END)    
             event.widget.handoff_button_var.set(str(handoff_id))
             event.widget.install_vars["install_id"].set(install_id)
-            event.widget.install_vars["install_date"].set(install_date)
             event.widget.install_vars["tech_name"].set(tech_name)
             event.widget.install_vars["work_ord_num"].set(work_ord_num)
             event.widget.install_vars["tracking_number"].set(tracking_number)
@@ -907,5 +886,5 @@ db_conn.close()
 # Main root window
 root = Tk()
 ZDint = ZendexGUI(root)
-root.geometry("800x800")
+root.geometry("750x500")
 root.mainloop()
