@@ -93,7 +93,7 @@ class ZendexGUI:
         self.load_tickets()    
   
     def delete_ticket(self):
-        if self.selected_ticket is None:
+        if self.selected_ticket is None or self.selected_listbox is None:
             return
 
         confirm = messagebox.askyesno(
@@ -107,10 +107,18 @@ class ZendexGUI:
         db_conn = sql.connect('PR_Tickets.db')
         cx = db_conn.cursor()
 
-        cx.execute(
-            "DELETE FROM handoff_tickets WHERE handoff_id = ?",
-            (self.selected_ticket,)
-        )
+        table_type = getattr(self.selected_listbox, "table_type", None)
+
+        if table_type == "install":
+            cx.execute(
+                "DELETE FROM install_tickets WHERE install_id = ?",
+                (self.selected_ticket,)
+            )
+        else:
+            cx.execute(
+                "DELETE FROM handoff_tickets WHERE handoff_id = ?",
+                (self.selected_ticket,)
+            )
 
         db_conn.commit()
         db_conn.close()
@@ -175,27 +183,20 @@ class ZendexGUI:
             ttk.Label(details_frame, text=label_text).grid(row=row, column=0, sticky="w", padx=5, pady=3)
             entry = ttk.Entry(details_frame, textvariable=handoff_vars[key], width=35)
             entry.grid(row=row, column=1, padx=5, pady=3)
-
             row += 1
 
         self.ticket_list.handoff_vars = handoff_vars
         
         ttk.Label(details_frame, text="Ticket Status").grid(row=0, column=3, padx=10, pady=5)
-        status_var = StringVar(value="Install")
-        self.status_menu = ttk.OptionMenu(details_frame, status_var, "Install", "Install", "Scheduled", "Complete")
-        self.status_menu.grid(row=0, column=4, padx=10, pady=10)
-        self.ticket_list.status_var = status_var 
+        status_var = StringVar(value="Open")
+        self.status_menu = ttk.OptionMenu(details_frame, status_var, "Open", "Open", "Onboard", "Complete")
+        self.status_menu.grid(row=0, column=4, padx=10, pady=5)
+        self.ticket_list.status_var = status_var
+      
         
         ttk.Label(details_frame, text="Shipped Status").grid(row=1, column=3, padx=10, pady=5)
         shipping_var = StringVar(value="Not Sent")
-        self.shipping_status = ttk.OptionMenu(
-            details_frame,
-            shipping_var,
-            "Not Sent",
-            "Not Sent",
-            "Ready to Ship",
-            "Complete"
-        )
+        self.shipping_status = ttk.OptionMenu(details_frame, shipping_var, "Not Sent", "Not Sent", "Ready to Ship", "Complete")
         self.shipping_status.grid(row=1, column=4, padx=10, pady=5)
         self.ticket_list.shipping_var = shipping_var
 
@@ -209,25 +210,23 @@ class ZendexGUI:
         self.cs_action.grid(row=2, column=4, padx=10, pady=5)
         self.ticket_list.cs_var = cs_var
 
-        status_var = StringVar(value="Open")
-        self.status_menu = ttk.OptionMenu(details_frame, status_var, "Open", "Open", "Onboard", "Complete")
-        self.status_menu.grid(row=3, column=4, padx=10, pady=5)
-        self.ticket_list.status_var = status_var
-      
+
       # Shipping / CS section
         self.action_frame = LabelFrame(self.right_frame, text="Notes", bd=0)
         self.action_frame.pack()
-        self.notes_box = Text(self.action_frame, height=4, width=30)
-        self.notes_box.grid(row=0, rowspan = 4, column= 2, columnspan=2, padx=10, pady=10)
+        notes_box = Text(self.action_frame, height=4, width=30)
+        notes_box.grid(row=0, rowspan=4, column=2, columnspan=2, padx=10, pady=10)
+
+        self.ticket_list.notes_box = notes_box 
         
         # Status section
         self.status_frame = ttk.Frame(self.right_frame)
         self.status_frame.pack(expand=True)
         delete_button = ttk.Button(self.status_frame, text="Delete Ticket", command=self.delete_ticket)
-        delete_button.grid(row =0, column=0, pady=10)
+        delete_button.grid(row=0, column=0, pady=10)
 
         update_button = ttk.Button(self.status_frame, text="Update Ticket", command=self.update_handoff)
-        update_button.grid(row = 0, column=1, pady=10)
+        update_button.grid(row=0, column=1, pady=10)
         
         return self.ticket_list
     
@@ -331,7 +330,7 @@ class ZendexGUI:
         delete_button = ttk.Button(self.status_frame, text="Delete Ticket", command=self.delete_ticket)
         delete_button.grid(row =0, column=0, pady=10)
 
-        update_button = ttk.Button(self.status_frame, text="Update Ticket", command=self.update_handoff)
+        update_button = ttk.Button(self.status_frame, text="Update Ticket", command=self.update_install)
         update_button.grid(row = 0, column=1, pady=10)
         
         return self.ticket_list   
@@ -451,14 +450,14 @@ class ZendexGUI:
         cx = db_conn.cursor()
 
         cx.execute("""
-            SELECT full_name, b_name, email, phone, ord_num, shipping, cs_req, ticket_status, manage_acc 
+            SELECT full_name, b_name, email, phone, ord_num, shipping, cs_req, ticket_status, manage_acc, notes
                    FROM handoff_tickets WHERE handoff_id = ?""", (selected_ticket,))
 
         record = cx.fetchone()
         db_conn.close()
 
         if record:
-            full_name, b_name, email, phone, ord_num, shipping, cs_req, ticket_status, manage_acc = record
+            full_name, b_name, email, phone, ord_num, shipping, cs_req, ticket_status, manage_acc, notes= record
 
             event.widget.handoff_vars["full_name"].set(full_name)
             event.widget.handoff_vars["b_name"].set(b_name)
@@ -496,15 +495,15 @@ class ZendexGUI:
                 event.widget.install_date_widget.set_date(install_date)
             else:
                 event.widget.install_date_widget.delete(0, END)    
-            event.widget.handoff_button_var.set(str(handoff_id))
-            event.widget.install_vars["install_id"].set(install_id)
-            event.widget.install_vars["tech_name"].set(tech_name)
-            event.widget.install_vars["work_ord_num"].set(work_ord_num)
-            event.widget.install_vars["tracking_number"].set(tracking_number)
-            event.widget.company_var.set(install_company)
-            event.widget.admin_var.set(tech_on_admin)
-            event.widget.installation_var.set(install_complete)
-            event.widget.qc_var.set(qc_complete)
+                event.widget.handoff_button_var.set(str(handoff_id))
+                event.widget.install_vars["install_id"].set(install_id)
+                event.widget.install_vars["tech_name"].set(tech_name)
+                event.widget.install_vars["work_ord_num"].set(work_ord_num)
+                event.widget.install_vars["tracking_number"].set(tracking_number)
+                event.widget.company_var.set(install_company)
+                event.widget.admin_var.set(tech_on_admin)
+                event.widget.installation_var.set(install_complete)
+                event.widget.qc_var.set(qc_complete)
  
     def show_handoff_details(self):
         handoff_id_value = self.selected_listbox.handoff_button_var.get()
@@ -555,7 +554,7 @@ class ZendexGUI:
 
         cx.execute("""INSERT INTO handoff_tickets VALUES 
             (:handoff_id, :full_name, :b_name, :phone, :email, :ord_num,
-            :e_shipping, :e_cs_req, :e_ticket_status, :manage_acc)""",
+            :e_shipping, :e_cs_req, :e_ticket_status, :manage_acc, :notes)""",
             {
                 'handoff_id': self.handoff_id.get(),
                 'full_name': self.full_name.get(),
@@ -566,7 +565,8 @@ class ZendexGUI:
                 'e_shipping': self.e_shipping.get(),
                 'e_cs_req': self.e_cs_req.get(),
                 'e_ticket_status': self.e_ticket_status.get(),
-                'manage_acc': self.manage_acc.get()
+                'manage_acc': self.manage_acc.get(),
+                'notes': ""
             }
         )
 
@@ -586,7 +586,6 @@ class ZendexGUI:
             return
         old_listbox = self.selected_listbox
         handoff_vars = self.selected_listbox.handoff_vars
-
         full_name = handoff_vars["full_name"].get()
         b_name = handoff_vars["b_name"].get()
         email = handoff_vars["email"].get()
@@ -596,34 +595,71 @@ class ZendexGUI:
         shipping = self.selected_listbox.shipping_var.get()
         cs_req = self.selected_listbox.cs_var.get()
         ticket_status = self.selected_listbox.status_var.get()
+        notes = self.selected_listbox.notes_box.get("1.0", "end-1c")
         db_conn = sql.connect('PR_Tickets.db')
         cx = db_conn.cursor()
 
-        cx.execute("""
-            UPDATE handoff_tickets
-            SET full_name = ?,
-                b_name = ?,
-                email = ?,
-                phone = ?,
-                ord_num = ?,
-                shipping = ?,
-                cs_req = ?,
-                ticket_status = ?,
-                manage_acc = ?
-            WHERE handoff_id = ?
-        """, (
-            full_name,
-            b_name,
-            email,
-            phone,
-            ord_num,
-            shipping,
-            cs_req,
-            ticket_status,
-            manage_acc,
-            self.selected_ticket
-        ))
+        cx.execute("""UPDATE handoff_tickets
+            SET full_name = ?, b_name = ?, email = ?, phone = ?, ord_num = ?, shipping = ?, \
+                   cs_req = ?, ticket_status = ?, manage_acc = ?, notes = ?
+            WHERE handoff_id = ?""", ( full_name, b_name, email, phone, ord_num, shipping, \
+                                      cs_req, ticket_status, manage_acc, notes, self.selected_ticket))
+        db_conn.commit()
+        db_conn.close()
+        
+        current_index = self.selected_listbox.curselection()
+        new_listbox = self.ticket_lists[ticket_status]
 
+        if old_listbox != new_listbox:
+            current_index = old_listbox.curselection()
+            if current_index:
+                old_listbox.delete(current_index[0])
+            new_listbox.insert(END, self.selected_ticket)
+            self.selected_listbox = new_listbox
+
+        messagebox.showinfo(
+            title="Updated",
+            message="Ticket updated successfully."
+        )
+
+    def update_install(self):
+        if self.selected_ticket is None:
+            return
+        old_listbox = self.selected_listbox
+        install_vars = self.selected_listbox.install_vars
+        install_id = install_vars["install_id"].get()
+        tech_name= install_vars["tech_name"].get()
+        work_ord_num = install_vars["work_ord_num"].get()
+        tracking_number = install_vars["tracking_number"].get()
+        install_date = self.selected_listbox.install_date.get()
+        status_var = self.selected_listbox.status_var.get()
+        company_var = self.selected_listbox.company_var.get()
+        admin_var = self.selected_listbox.admin_var.get()
+        installation_var = self.selected_listbox.installation_var.get()
+        qc_var = self.selected_listbox.qc_var.get()
+        notes = self.selected_listbox.notes_box.get("1.0", "end-1c")
+
+        db_conn = sql.connect('PR_Tickets.db')
+        cx = db_conn.cursor()
+        
+        cx.execute("""
+        UPDATE install_tickets 
+            install_id = ?, install_company = ?, install_date = ?, tech_name = ?, tech_on_admin = ?, work_ord_num = ?, \
+                   install_complete = ?, qc_complete = ?, tracking_number = ?, ticket_status = ?, notes = ?
+            WHERE install_id = ?
+    """, (
+        install_id,
+        company_var,
+        install_date,
+        tech_name,
+        admin_var,
+        work_ord_num,
+        installation_var,
+        qc_var,
+        tracking_number,
+        status_var,
+        notes
+    ))
         db_conn.commit()
         db_conn.close()
         
@@ -646,78 +682,9 @@ class ZendexGUI:
             message="Ticket updated successfully."
         )
 
-    def update_install(self):
-            if self.selected_ticket is None:
-                return
-            old_listbox = self.selected_listbox
-            handoff_vars = self.selected_listbox.handoff_vars
-
-            full_name = handoff_vars["full_name"].get()
-            b_name = handoff_vars["b_name"].get()
-            email = handoff_vars["email"].get()
-            phone = handoff_vars["phone"].get()
-            ord_num = handoff_vars["ord_num"].get()
-            manage_acc = handoff_vars["manage_acc"].get()
-            shipping = self.selected_listbox.shipping_var.get()
-            cs_req = self.selected_listbox.cs_var.get()
-            ticket_status = self.selected_listbox.status_var.get()
-            db_conn = sql.connect('PR_Tickets.db')
-            cx = db_conn.cursor()
-
-            cx.execute("""
-                UPDATE handoff_tickets
-                SET full_name = ?,
-                    b_name = ?,
-                    email = ?,
-                    phone = ?,
-                    ord_num = ?,
-                    shipping = ?,
-                    cs_req = ?,
-                    ticket_status = ?,
-                    manage_acc = ?
-                WHERE handoff_id = ?
-            """, (
-                full_name,
-                b_name,
-                email,
-                phone,
-                ord_num,
-                shipping,
-                cs_req,
-                ticket_status,
-                manage_acc,
-                self.selected_ticket
-            ))
-
-            db_conn.commit()
-            db_conn.close()
-            
-            current_index = self.selected_listbox.curselection()
-
-            new_listbox = self.ticket_lists[ticket_status]
-
-            if old_listbox != new_listbox:
-                current_index = old_listbox.curselection()
-
-                if current_index:
-                    old_listbox.delete(current_index[0])
-
-                new_listbox.insert(END, self.selected_ticket)
-
-                self.selected_listbox = new_listbox
-
-            messagebox.showinfo(
-                title="Updated",
-                message="Ticket updated successfully."
-            )
-    
-    # def new_enter_key(self, case, new_tic, window):
-    #     self.add_to_list(case, new_tic)
-    #     self.close_window(window)
-
-    def add_to_list(self, t_list, ticket): #Add ticket to ticket list
-        self.tict_dict[t_list].append(ticket)
-        print(self.tict_dict.get(t_list))
+    # def add_to_list(self, t_list, ticket): #Add ticket to ticket list
+    #     self.tict_dict[t_list].append(ticket)
+    #     print(self.tict_dict.get(t_list))
 
     def close_window(self,window):
         window.destroy()
@@ -770,33 +737,33 @@ class ZendexGUI:
         self.install_id = ttk.Entry(self.install_window, width=30)
         self.install_id.grid(row=1, column=1, padx=10, pady=5)
 
-        ttk.Label(self.install_window, text="Install Company").grid(row=2, column=0, padx=10, pady=5)
-        OptionMenu(self.install_window, self.install_company_var, "TL", "TSP").grid(row=2, column=1, padx=10, pady=5)
+        # ttk.Label(self.install_window, text="Install Company").grid(row=2, column=0, padx=10, pady=5)
+        # OptionMenu(self.install_window, self.install_company_var, "TL", "TSP").grid(row=2, column=1, padx=10, pady=5)
 
-        ttk.Label(self.install_window, text="Install Date").grid(row=3, column=0, padx=10, pady=5)
-        self.install_date = DateEntry(
-            self.install_window,
-            width=27,
-            date_pattern="yyyy-mm-dd"
-        )
-        self.install_date.grid(row=3, column=1, padx=10, pady=5)
+        # ttk.Label(self.install_window, text="Install Date").grid(row=3, column=0, padx=10, pady=5)
+        # self.install_date = DateEntry(
+        #     self.install_window,
+        #     width=27,
+        #     date_pattern="yyyy-mm-dd"
+        # )
+        # self.install_date.grid(row=3, column=1, padx=10, pady=5)
 
-        ttk.Label(self.install_window, text="Tech Name").grid(row=4, column=0, padx=10, pady=5)
-        self.tech_name = ttk.Entry(self.install_window, width=30)
-        self.tech_name.grid(row=4, column=1, padx=10, pady=5)
+        # ttk.Label(self.install_window, text="Tech Name").grid(row=4, column=0, padx=10, pady=5)
+        # self.tech_name = ttk.Entry(self.install_window, width=30)
+        # self.tech_name.grid(row=4, column=1, padx=10, pady=5)
 
-        ttk.Label(self.install_window, text="Tech on Admin").grid(row=5, column=0, padx=10, pady=5)
-        OptionMenu(self.install_window, self.tech_admin_var, "Create", "Added", "Deleted").grid(row=5, column=1, padx=10, pady=5)
+        # ttk.Label(self.install_window, text="Tech on Admin").grid(row=5, column=0, padx=10, pady=5)
+        # OptionMenu(self.install_window, self.tech_admin_var, "Create", "Added", "Deleted").grid(row=5, column=1, padx=10, pady=5)
 
         ttk.Label(self.install_window, text="Work Order #").grid(row=6, column=0, padx=10, pady=5)
         self.work_ord_num = ttk.Entry(self.install_window, width=30)
         self.work_ord_num.grid(row=6, column=1, padx=10, pady=5)
 
-        ttk.Label(self.install_window, text="Install Complete").grid(row=7, column=0, padx=10, pady=5)
-        OptionMenu(self.install_window, self.install_complete_var, "Cancelled", "RMA", "Yes").grid(row=7, column=1, padx=10, pady=5)
+        # ttk.Label(self.install_window, text="Install Complete").grid(row=7, column=0, padx=10, pady=5)
+        # OptionMenu(self.install_window, self.install_complete_var, "Cancelled", "RMA", "Yes").grid(row=7, column=1, padx=10, pady=5)
 
-        ttk.Label(self.install_window, text="QC Complete").grid(row=8, column=0, padx=10, pady=5)
-        OptionMenu(self.install_window, self.qc_complete_var, "Pending", "Pass").grid(row=8, column=1, padx=10, pady=5)
+        # ttk.Label(self.install_window, text="QC Complete").grid(row=8, column=0, padx=10, pady=5)
+        # OptionMenu(self.install_window, self.qc_complete_var, "Pending", "Pass").grid(row=8, column=1, padx=10, pady=5)
 
         ttk.Label(self.install_window, text="Tracking Number").grid(row=9, column=0, padx=10, pady=5)
         self.tracking_number = ttk.Entry(self.install_window, width=30)
@@ -813,29 +780,20 @@ class ZendexGUI:
         cx = db_conn.cursor()
 
         cx.execute("""
-            INSERT INTO install_tickets (
-                install_id,
-                handoff_id,
-                install_company,
-                install_date,
-                tech_name,
-                tech_on_admin,
-                work_ord_num,
-                install_complete,
-                qc_complete,
-                tracking_number
+            INSERT INTO install_tickets (install_id, handoff_id, \
+                   work_ord_num, tracking_number
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?)
         """, (
             self.install_id.get(),
             self.install_handoff_button_var.get(),
-            self.install_company_var.get(),
-            self.install_date.get(),
-            self.tech_name.get(),
-            self.tech_admin_var.get(),
+            # self.install_company_var.get(),
+            # self.install_date.get(),
+            # self.tech_name.get(),
+            # self.tech_admin_var.get(),
             self.work_ord_num.get(),
-            self.install_complete_var.get(),
-            self.qc_complete_var.get(),
+            # self.install_complete_var.get(),
+            # self.qc_complete_var.get(),
             self.tracking_number.get()
         ))
 
@@ -864,20 +822,23 @@ cx.execute("""CREATE TABLE IF NOT EXISTS handoff_tickets (
            shipping TEXT,
            cs_req TEXT,
            ticket_status TEXT,
-           manage_acc TEXT
+           manage_acc TEXT,
+           notes TEXT
            )""" )
 
 cx.execute("""CREATE TABLE IF NOT EXISTS install_tickets(
-            install_id INTEGER PRIMARY KEY,
-            handoff_id INTEGER,
-            install_company TEXT,
-            install_date TEXT,
-            tech_name TEXT,
-            tech_on_admin TEXT,
-            work_ord_num TEXT,
-            install_complete TEXT,
-            qc_complete TEXT,
-            tracking_number TEXT
+           install_id INTEGER PRIMARY KEY,
+           handoff_id INTEGER,
+           install_company TEXT,
+           install_date TEXT,
+           tech_name TEXT,
+           tech_on_admin TEXT,
+           work_ord_num TEXT,
+           install_complete TEXT,
+           qc_complete TEXT,
+           tracking_number TEXT,
+           ticket_status TEXT,
+           notes TEXT
         )""")
 
 db_conn.commit()
